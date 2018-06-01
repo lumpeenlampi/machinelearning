@@ -1,0 +1,91 @@
+---
+title: "Dumbell Assignment"
+author: "Lumpeenlampi"
+date: "1 June 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+library(MASS)
+set.seed(1234)
+```
+
+## Introduction
+
+This is the Coursera Machine Learning course assignment on Dumbell exercise data.
+
+## Loading data and initiating training and test set
+
+We read the training and testing set from file. While there are 160 variables, only a subset is relevant, as the first columns include row number, time stamp and window information, and there are a number of variables which are NA (in the test set particularly). In practice the derived variables (average, variability, standard deviation, min, max, etc), which are calculated for each window are left out (i.e. modelling only takes into account momentous values, not time series information). Note that for this kind of analysis this is a serious omission, as the movements will only show up properly in the time series. Note that we will retain the names (of the persons), although a true person independent classifier would ignore them. Also we maintained gyroscope and magnetometer data next to the accelerometer data (not clear from the assignment if we should only use accelerometer data).
+
+The test data does not include the actual class, so that we will extract a "validation" data set to do our testing of the models from the training set (more than enough data, so no problem).
+
+```{r}
+
+training <- read.csv("pml-training.csv")
+testing <- read.csv("pml-testing.csv")
+
+valid_cols <- !is.na(sapply(testing, mean)) # Mark columns that only have NA's (in testing set) as irrelevant
+valid_cols[1] <- FALSE; valid_cols[2] <- TRUE; valid_cols[3] <- FALSE; valid_cols[4] <- FALSE; 
+valid_cols[5] <- FALSE; valid_cols[6] <- FALSE; valid_cols[7] <- FALSE 
+    #Set X, timestamps and window markers as irrelevant, but maintain names
+
+valtrain <- training[,valid_cols]
+valtest <- testing[,valid_cols]
+
+inTrain <- createDataPartition(y=valtrain$classe, p=0.7, list=FALSE)
+valvalid <- valtrain[-inTrain,]
+valtrain <- valtrain[inTrain,]
+
+dim(valtrain)
+dim(valvalid)
+dim(valtest)
+```
+
+## Examining predictors
+
+We have a look at the distributions of the various predictors to see if we can pick the most promising ones.
+
+```{r height=1000}
+
+featurePlot(x=valtrain[,2:19], y=valtrain$classe, plot="box")
+featurePlot(x=valtrain[,20:37], y=valtrain$classe, plot="box")
+featurePlot(x=valtrain[,38:53], y=valtrain$classe, plot="box")
+
+```
+
+None of the predictors seems to significantly provide information for classification into the given classes, thus we will proceed with all predictors. 
+
+## Building and comparing models
+
+Due to amount of data, using advanced models like random forest is not feasible due to their computational complexity (and my impatience to wait for them to finish). Thus we will use discriminant analysis instead. We use both linear and quadratic versions.
+
+```{r cache=TRUE}
+ldaFit <- train(classe ~ ., data=valtrain, method="lda")
+ldaPred <- predict(ldaFit, valvalid)
+ldaCM <- confusionMatrix(ldaPred, valvalid$classe)
+
+qdaFit <- train(classe ~ ., data=valtrain, method="qda")
+qdaPred <- predict(qdaFit, valvalid)
+qdaCM <- confusionMatrix(qdaPred, valvalid$classe)
+
+ldaCM
+
+qdaCM
+
+```
+
+The accuracy of the linear version (74%) is clearly poorer than the quadratic version (91%), so that we will use the latter. A combination of both models is not expected to perform better, as the quadratic version basically includes the linear version. For more detail on the estimated errors, see the confusion matrix above.
+
+##  Performing the test
+
+Predicting the classe of the test vector entries is now done with the quadratic discriminant analysis classifier:
+
+```{r}
+testPred <- predict(qdaFit, valtest)
+cbind(valtest$problem_id, as.character(testPred))
+```
+
+
