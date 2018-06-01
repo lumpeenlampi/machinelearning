@@ -77,7 +77,7 @@ qdaCM
 
 ```
 
-The accuracy of the linear version (74%) is clearly poorer than the quadratic version (91%), so that we will use the latter. A combination of both models is not expected to perform better, as the quadratic version basically includes the linear version. For more detail on the estimated errors, see the confusion matrix above.
+The (out of sample) accuracy of the linear version (74%) is clearly poorer than the quadratic version (91%), so that we will use the latter. A combination of both models is not expected to perform better, as the quadratic version basically includes the linear version. For more detail on the estimated errors, see the confusion matrix above.
 
 ##  Performing the test
 
